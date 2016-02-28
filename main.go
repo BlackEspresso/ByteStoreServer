@@ -24,7 +24,7 @@ func main() {
 	r.GET("/info", infoContainers)
 	r.GET("/info/:container", infoContainer)
 	r.GET("/info/:container/:file", infoFile)
-	r.Static("/static", "./static")
+	r.Static("/static/", "./static/")
 
 	r.Run(":8080")
 }

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<script src="jquery-2.2.1.min.js"></script>
+<form action="/file/00000000-0000-0000-0000-000000000000" method="POST"
+	enctype="multipart/form-data">
+<input type="file" name="upload">
+<input type="text" name="meta" value="ttt">
+<input type="submit">
+</form>
+
+<div id="folders">
+
+
+</div>
+
+<script>
+var folders = $('#folders');
+getContainers();
+
+function getContainers(){
+	$.getJSON('/info').done(function(list){
+		for(var x=0;x<list.length;x++){
+			var link = $('<a>').text(list[x]);
+			link.attr('href',list[x]);
+			link.click(getFiles);
+			folders.append(link)
+		}
+	})
+}
+
+
+function getFiles(e){
+	e.preventDefault();
+	var target = $(e.target)
+	var container=target.attr('href')
+	container = container.split('/')[0]
+	folders.empty();
+	$.getJSON('/info/'+container).done(function(list){
+		for(var x=0;x<list.length;x++){
+			var link = $('<a>').text(container + '/' + list[x]);
+			link.attr('href',container+'/'+list[x]);
+			link.append($('<br>'))
+			link.click(getFile);
+			folders.append(link)			
+		}
+		var back = $('<a>').text('back').attr('href','').click(getContainers)
+		folders.append(back);
+	})
+}
+
+function getFile(e){
+	e.preventDefault();
+	var target = $(e.target)
+	var fileLink=target.text()
+	folders.empty();
+	$.getJSON('/info/'+fileLink).done(function(list){
+			var link = $('<a>').text(list.FileName);
+			link.attr('href','/file/'+fileLink);
+			link.attr('target','_blank')
+			link.append($('<br>'))
+			folders.append(link)
+			var back = $('<a>').text('back').attr('href',fileLink).click(getFiles)
+			folders.append(back);			
+	})
+}
+
+
+</script>
+
+</html>
