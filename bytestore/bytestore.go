@@ -20,7 +20,8 @@ type FileList map[uuid.UUID]*FileMeta
 
 var workingDir = "./containers"
 var errorFileNotInContainer error = errors.New("file not in container")
-var filePerm os.FileMode = os.FileMode(0666)
+var filePerm os.FileMode = os.FileMode(0664)
+var dirPerm os.FileMode = os.FileMode(0774)
 
 type ContainerManager struct {
 	cLock      sync.Locker
@@ -103,7 +104,7 @@ func (m *ContainerManager) GetOrCreateContainer(id uuid.UUID) *Container {
 
 	c = newContainer()
 	c.Id = id
-	os.Mkdir(c.GetPath(), filePerm)
+	os.Mkdir(c.GetPath(), dirPerm)
 	m.addToList(c)
 	return c
 }
@@ -206,7 +207,7 @@ func (container *Container) ReadFromDir() {
 
 func CheckWorkingDirExists() {
 	if ok, _ := exists(workingDir); !ok {
-		os.Mkdir(workingDir, filePerm)
+		os.Mkdir(workingDir, dirPerm)
 	}
 }
 

@@ -17,6 +17,12 @@ import (
 var manager *bytestore.ContainerManager = bytestore.NewContainerManager()
 var tokens map[string]*DownloadToken = map[string]*DownloadToken{}
 
+type DownloadToken struct {
+	FileId      string
+	ContainerId string
+	Token       string
+}
+
 func main() {
 	bytestore.CheckWorkingDirExists()
 	manager.ReadFromDir()
@@ -42,12 +48,6 @@ func main() {
 	rFrontEnd := gin.Default()
 	rFrontEnd.GET("/downloadbytoken/:token", downloadByToken)
 	rFrontEnd.Run(":8080")
-}
-
-type DownloadToken struct {
-	FileId      string
-	ContainerId string
-	Token       string
 }
 
 func downloadByToken(g *gin.Context) {
@@ -113,9 +113,7 @@ func upload(g *gin.Context) {
 		return
 	}
 	filename := header.Filename
-	fmt.Println(header.Filename)
 	meta := g.Request.FormValue("meta")
-	fmt.Println(meta)
 	fm := c.AddFile(filename, meta, file)
 	g.JSON(200, fm)
 }
