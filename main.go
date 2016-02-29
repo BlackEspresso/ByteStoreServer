@@ -2,6 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"log"
+	"os"
+	"strconv"
 
 	"./bytestore"
 
@@ -61,7 +65,17 @@ func download(g *gin.Context) {
 	}
 	filePath := container.GetFilePath(fm.Id)
 	g.Header("Content-Disposition", "attachment; filename='"+fm.FileName+"';")
-	g.File(filePath)
+	st, _ := os.Stat(filePath)
+	g.Header("Content-Type", "application/octet-stream")
+	g.Header("Content-Length", strconv.Itoa(int(st.Size())))
+	f, err := os.Open(filePath)
+	if err != nil {
+		log.Println(err)
+		g.String(500, "cant stream file")
+		return
+	}
+	defer f.Close()
+	io.Copy(g.Writer, f)
 }
 
 func deleteContainer(g *gin.Context) {
@@ -84,6 +98,7 @@ func infoContainers(g *gin.Context) {
 	l := manager.GetContainers(300)
 	g.JSON(200, l)
 }
+
 func infoContainer(g *gin.Context) {
 	c, ok := getContainerFromRequest(g)
 	if !ok {
