@@ -20,6 +20,7 @@ type FileList map[uuid.UUID]*FileMeta
 
 var workingDir = "./containers"
 var errorFileNotInContainer error = errors.New("file not in container")
+var filePerm os.FileMode = os.FileMode(0666)
 
 type ContainerManager struct {
 	cLock      sync.Locker
@@ -70,19 +71,21 @@ func (m *ContainerManager) GetContainer(id uuid.UUID) (*Container, bool) {
 func (m *ContainerManager) GetContainers(ipp int) []string {
 	list := []string{}
 	for m := range m.containers {
-		if len(list) < ipp {
-			list = append(list, m.String())
+		if len(list) > ipp {
+			break
 		}
+		list = append(list, m.String())
 	}
 	return list
 }
 
-func (m *Container) GetFiles(ipp int) []string {
-	list := []string{}
-	for m := range m.files {
-		if len(list) < ipp {
-			list = append(list, m.String())
+func (m *Container) GetFiles(ipp int) []*FileMeta {
+	list := []*FileMeta{}
+	for _, fm := range m.files {
+		if len(list) > ipp {
+			break
 		}
+		list = append(list, fm)
 	}
 	return list
 }
@@ -100,7 +103,7 @@ func (m *ContainerManager) GetOrCreateContainer(id uuid.UUID) *Container {
 
 	c = newContainer()
 	c.Id = id
-	os.Mkdir(c.GetPath(), 0777)
+	os.Mkdir(c.GetPath(), filePerm)
 	m.addToList(c)
 	return c
 }
@@ -163,7 +166,7 @@ func (container *Container) AddFile(name string, meta string, reader io.Reader) 
 		log.Fatal(err)
 	}
 	// write meta content
-	ioutil.WriteFile(container.GetMetaFilePath(f.Id), metaFileContent, 0777)
+	ioutil.WriteFile(container.GetMetaFilePath(f.Id), metaFileContent, filePerm)
 
 	// register file in index
 	container.fLock.Lock()
@@ -203,7 +206,7 @@ func (container *Container) ReadFromDir() {
 
 func CheckWorkingDirExists() {
 	if ok, _ := exists(workingDir); !ok {
-		os.Mkdir(workingDir, 0777)
+		os.Mkdir(workingDir, filePerm)
 	}
 }
 

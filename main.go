@@ -12,18 +12,20 @@ import (
 var manager *bytestore.ContainerManager = bytestore.NewContainerManager()
 
 func main() {
-
 	bytestore.CheckWorkingDirExists()
 	manager.ReadFromDir()
 
 	r := gin.Default()
 	r.POST("/file/:container", upload)
-	r.DELETE("/file/:container", deleteContainer)
+
 	r.GET("/file/:container/:file", download)
-	r.DELETE("/file/:container/:file", deleteFile)
 	r.GET("/info", infoContainers)
 	r.GET("/info/:container", infoContainer)
 	r.GET("/info/:container/:file", infoFile)
+
+	r.DELETE("/file/:container/:file", deleteFile)
+	r.DELETE("/file/:container", deleteContainer)
+
 	r.Static("/static/", "./static/")
 
 	r.Run(":8080")
@@ -40,6 +42,10 @@ func upload(g *gin.Context) {
 	c := manager.GetOrCreateContainer(cId)
 
 	file, header, err := g.Request.FormFile("upload")
+	if err != nil {
+		g.String(404, err.Error())
+		return
+	}
 	filename := header.Filename
 	fmt.Println(header.Filename)
 	meta := g.Request.FormValue("meta")

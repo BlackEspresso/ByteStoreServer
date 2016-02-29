@@ -37,10 +37,9 @@ function getFiles(e){
 	folders.empty();
 	$.getJSON('/info/'+container).done(function(list){
 		for(var x=0;x<list.length;x++){
-			var link = $('<a>').text(container + '/' + list[x]);
-			link.attr('href',container+'/'+list[x]);
+			var link = $('<a>').text(JSON.stringify(list[x]));
+			link.attr('href','/file/'+list[x].ContainerId+'/'+list[x].Id);
 			link.append($('<br>'))
-			link.click(getFile);
 			folders.append(link)			
 		}
 		var back = $('<a>').text('back').attr('href','').click(getContainers)
@@ -51,7 +50,7 @@ function getFiles(e){
 function getFile(e){
 	e.preventDefault();
 	var target = $(e.target)
-	var fileLink=target.text()
+	var fileLink=target.attr('href')
 	folders.empty();
 	$.getJSON('/info/'+fileLink).done(function(list){
 			var link = $('<a>').text(list.FileName);
