@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"./bytestore"
 
@@ -14,6 +15,7 @@ import (
 )
 
 var manager *bytestore.ContainerManager = bytestore.NewContainerManager()
+var tokens map[string]*DownloadToken = map[string]*DownloadToken{}
 
 func main() {
 	bytestore.CheckWorkingDirExists()
@@ -24,6 +26,7 @@ func main() {
 
 	r.GET("/file/:container/:file", download)
 	r.GET("/info", infoContainers)
+	r.POST("/token/:container/:file", createDownloadToken)
 	r.GET("/info/:container", infoContainer)
 	r.GET("/info/:container/:file", infoFile)
 
@@ -32,14 +35,73 @@ func main() {
 
 	r.Static("/static/", "./static/")
 
-	r.Run(":8080")
+	go func() {
+		r.Run("localhost:8079")
+	}()
+
+	rFrontEnd := gin.Default()
+	rFrontEnd.GET("/downloadbytoken/:token", downloadByToken)
+	rFrontEnd.Run(":8080")
+}
+
+type DownloadToken struct {
+	FileId      string
+	ContainerId string
+	Token       string
+}
+
+func downloadByToken(g *gin.Context) {
+	token := g.Param("token")
+	td, exists := tokens[token]
+	if !exists {
+		g.String(404, "download not found or token expired")
+	}
+	cId, _ := uuid.FromString(td.ContainerId)
+	fId, _ := uuid.FromString(td.FileId)
+	container, ok := manager.GetContainer(cId)
+	if !ok {
+		g.String(404, "container not found")
+		return
+	}
+	fm, ok := container.GetFile(fId)
+	if !ok {
+		g.String(404, "file not found")
+		return
+	}
+
+	filePath := container.GetFilePath(fm.Id)
+	downloadFileFromPath(g, filePath, fm.FileName)
+	delete(tokens, token)
+}
+
+func createDownloadToken(g *gin.Context) {
+	c, fm, ok := getFileFromRequest(g)
+	if !ok {
+		return
+	}
+
+	token := newToken()
+	dt := DownloadToken{}
+	dt.ContainerId = c.Id.String()
+	dt.FileId = fm.Id.String()
+	dt.Token = token
+
+	tokens[dt.Token] = &dt
+
+	g.JSON(200, dt)
+}
+
+func newToken() string {
+	u1 := uuid.NewV4()
+	u2 := uuid.NewV4()
+	token := u1.String() + u2.String()
+	token = strings.Replace(token, "-", "", -1)
+	return token
 }
 
 func upload(g *gin.Context) {
-	cIdStr := g.Param("container")
-	cId, err := uuid.FromString(cIdStr)
-	if err != nil {
-		g.String(404, "container id invalid")
+	cId, ok := getContainerId(g)
+	if !ok {
 		return
 	}
 
@@ -64,8 +126,16 @@ func download(g *gin.Context) {
 		return
 	}
 	filePath := container.GetFilePath(fm.Id)
-	g.Header("Content-Disposition", "attachment; filename='"+fm.FileName+"';")
-	st, _ := os.Stat(filePath)
+	downloadFileFromPath(g, filePath, fm.FileName)
+}
+
+func downloadFileFromPath(g *gin.Context, filePath, fileName string) {
+	st, err := os.Stat(filePath)
+	if err != nil {
+		fmt.Print(err)
+		return
+	}
+	g.Header("Content-Disposition", "attachment; filename='"+fileName+"';")
 	g.Header("Content-Type", "application/octet-stream")
 	g.Header("Content-Length", strconv.Itoa(int(st.Size())))
 	f, err := os.Open(filePath)
@@ -117,11 +187,29 @@ func infoFile(g *gin.Context) {
 	g.JSON(200, fm)
 }
 
-func getContainerFromRequest(g *gin.Context) (*bytestore.Container, bool) {
+func getContainerId(g *gin.Context) (uuid.UUID, bool) {
 	cIdStr := g.Param("container")
 	cId, err1 := uuid.FromString(cIdStr)
 	if err1 != nil {
 		g.String(404, "container id invalid")
+		return uuid.Nil, false
+	}
+	return cId, true
+}
+
+func getFileId(g *gin.Context) (uuid.UUID, bool) {
+	fIdStr := g.Param("file")
+	fId, err1 := uuid.FromString(fIdStr)
+	if err1 != nil {
+		g.String(404, "file id invalid")
+		return uuid.Nil, false
+	}
+	return fId, true
+}
+
+func getContainerFromRequest(g *gin.Context) (*bytestore.Container, bool) {
+	cId, ok := getContainerId(g)
+	if !ok {
 		return nil, false
 	}
 	container, ok := manager.GetContainer(cId)
@@ -137,11 +225,8 @@ func getFileFromRequest(g *gin.Context) (*bytestore.Container, *bytestore.FileMe
 	if !ok {
 		return nil, nil, false
 	}
-	fIdStr := g.Param("file")
-	fId, err := uuid.FromString(fIdStr)
-
-	if err != nil {
-		g.String(404, "file id invalid")
+	fId, ok := getFileId(g)
+	if !ok {
 		return nil, nil, false
 	}
 

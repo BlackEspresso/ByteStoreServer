@@ -37,32 +37,30 @@ function getFiles(e){
 	folders.empty();
 	$.getJSON('/info/'+container).done(function(list){
 		for(var x=0;x<list.length;x++){
-			var link = $('<a>').text(JSON.stringify(list[x]));
+			var link = $('<a>').text(list[x].FileName);
 			link.attr('href','/file/'+list[x].ContainerId+'/'+list[x].Id);
-			link.append($('<br>'))
+			var btn = $('<button>').text('Gen Token')
+				.attr('type','button')
+				.attr('link',list[x].ContainerId+'/'+list[x].Id)
+				.click(genToken);
+			
 			folders.append(link)			
+			folders.append(btn)
+			folders.append($('<br>'))
 		}
 		var back = $('<a>').text('back').attr('href','').click(getContainers)
 		folders.append(back);
 	})
 }
 
-function getFile(e){
-	e.preventDefault();
-	var target = $(e.target)
-	var fileLink=target.attr('href')
-	folders.empty();
-	$.getJSON('/info/'+fileLink).done(function(list){
-			var link = $('<a>').text(list.FileName);
-			link.attr('href','/file/'+fileLink);
-			link.attr('target','_blank')
-			link.append($('<br>'))
-			folders.append(link)
-			var back = $('<a>').text('back').attr('href',fileLink).click(getFiles)
-			folders.append(back);			
+
+function genToken(e){
+	var target = $(e.target);
+	var l= target.attr('link');
+	$.post('/token/'+l,function(resp){
+		console.log(resp)
 	})
 }
-
 
 </script>
 
