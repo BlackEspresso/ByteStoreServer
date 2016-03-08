@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -27,6 +28,10 @@ func main() {
 	bytestore.CheckWorkingDirExists()
 	manager.ReadFromDir()
 
+	backendBinding := flag.String("backend", "localhost:8079", "backend binding")
+	frontendBinding := flag.String("frontend", ":8080", "frontent binding")
+	flag.Parse()
+
 	r := gin.Default()
 	r.POST("/file/:container", upload)
 
@@ -42,12 +47,12 @@ func main() {
 	r.Static("/static/", "./static/")
 
 	go func() {
-		r.Run("localhost:8079")
+		r.Run(*backendBinding)
 	}()
 
 	rFrontEnd := gin.Default()
 	rFrontEnd.GET("/downloadbytoken/:token", downloadByToken)
-	rFrontEnd.Run(":8080")
+	rFrontEnd.Run(*frontendBinding)
 }
 
 func downloadByToken(g *gin.Context) {
@@ -163,7 +168,7 @@ func deleteFile(g *gin.Context) {
 }
 
 func infoContainers(g *gin.Context) {
-	l := manager.GetContainers(300)
+	l := manager.GetContainers(999999)
 	g.JSON(200, l)
 }
 
@@ -172,7 +177,7 @@ func infoContainer(g *gin.Context) {
 	if !ok {
 		return
 	}
-	l := c.GetFiles(300)
+	l := c.GetFiles(999999)
 	g.JSON(200, l)
 }
 
